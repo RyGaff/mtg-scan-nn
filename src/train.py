@@ -15,12 +15,15 @@ from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
+from pytorch_metric_learning.samplers import MPerClassSampler
 from src.config import (BATCH_SIZE, LR, WEIGHT_DECAY, EPOCHS, TRIPLET_MARGIN,
                         IMAGES_DIR, UNIQUE_ARTWORK_JSON, ARTIFACTS_DIR)
 from src.dataset import CardDataset
 from src.device import pick_device
 from src.model import CardEncoder
 from src.losses import build_triplet_loss
+
+SAMPLES_PER_CARD = 4
 
 
 def load_scryfall_ids(limit: int | None = None) -> list[str]:
@@ -51,13 +54,24 @@ def train(smoke: bool = False, resume: str | None = None):
     train_ids, eval_ids = split_ids(all_ids)
     print(f"train: {len(train_ids)} cards, eval: {len(eval_ids)} cards")
 
-    train_ds = CardDataset(IMAGES_DIR, train_ids, samples_per_card=4, train=True)
+    train_ds = CardDataset(IMAGES_DIR, train_ids, samples_per_card=SAMPLES_PER_CARD, train=True)
 
+    # MPerClassSampler guarantees each batch contains M=SAMPLES_PER_CARD samples
+    # per card. Without this, at ~35k cards a random-shuffled batch of 64 rarely
+    # contains two samples of the same card, so BatchHardMiner returns no
+    # triplets and the loss has no gradient — training collapses to random.
+    labels = [i // SAMPLES_PER_CARD for i in range(len(train_ds))]
+    sampler = MPerClassSampler(
+        labels=labels,
+        m=SAMPLES_PER_CARD,
+        batch_size=batch,
+        length_before_new_iter=len(train_ds),
+    )
     # On macOS, multiprocessing fork can cause issues; use num_workers=0 for
     # smoke runs. pin_memory is only useful with CUDA.
     num_workers = 0 if smoke else 4
     pin_memory = device == "cuda"
-    train_loader = DataLoader(train_ds, batch_size=batch, shuffle=True,
+    train_loader = DataLoader(train_ds, batch_size=batch, sampler=sampler,
                               num_workers=num_workers, pin_memory=pin_memory,
                               drop_last=True)
 
@@ -119,7 +133,8 @@ def train(smoke: bool = False, resume: str | None = None):
         "train_cards": len(train_ids),
         "eval_cards": len(eval_ids),
         "batch_size": batch,
-        "samples_per_card": 4,
+        "samples_per_card": SAMPLES_PER_CARD,
+        "sampler": "MPerClassSampler",
         "epochs": epoch_log,
     }, indent=2))
     print(f"wrote {log_path}")
