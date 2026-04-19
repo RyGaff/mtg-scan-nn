@@ -18,7 +18,9 @@ EPOCHS = 30
 TRIPLET_MARGIN = 0.2
 
 MANIFEST_VERSION = 2
-BIN_MAGIC = 0x4D544745  # 'MTGE'
+# uint32 magic — packed little-endian so on-disk bytes spell ASCII "MTGE"
+# (0x4745544D LE → 0x4D 0x54 0x47 0x45 = 'M' 'T' 'G' 'E')
+BIN_MAGIC = 0x4745544D
 
 SCRYFALL_BULK_URL = "https://api.scryfall.com/bulk-data"
 # Scryfall asks for 50-100ms between requests and a descriptive User-Agent.
