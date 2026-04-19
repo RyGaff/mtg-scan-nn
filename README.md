@@ -13,7 +13,7 @@ Train a compact on-device image-embedding model that identifies any Magic: The G
 Header:
 | offset | size | field |
 |--------|------|-------|
-| 0      | 4    | ASCII magic `"MTGE"` (bytes `0x4D 0x54 0x47 0x45`; equals uint32 LE `0x4745544D`) |
+| 0      | 4    | ASCII magic `"MTGE"` (bytes `0x4D 0x54 0x47 0x45`; equals uint32 LE `0x4547544D`) |
 | 4      | 4    | uint32 version = 2 |
 | 8      | 4    | uint32 count N |
 | 12     | 4    | uint32 dim D = 256 |

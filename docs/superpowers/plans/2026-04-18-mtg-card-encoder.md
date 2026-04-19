@@ -153,7 +153,7 @@ EPOCHS = 30
 TRIPLET_MARGIN = 0.2
 
 MANIFEST_VERSION = 2
-BIN_MAGIC = 0x4745544D  # little-endian bytes spell ASCII 'MTGE'
+BIN_MAGIC = 0x4547544D  # little-endian bytes spell ASCII 'MTGE'
 
 SCRYFALL_BULK_URL = "https://api.scryfall.com/bulk-data"
 # Scryfall asks for 50-100ms between requests and a descriptive User-Agent.
@@ -203,7 +203,7 @@ Train a compact on-device image-embedding model that identifies any Magic: The G
 Header:
 | offset | size | field |
 |--------|------|-------|
-| 0      | 4    | ASCII magic = `"MTGE"` (bytes `0x4D 0x54 0x47 0x45`; equals uint32 LE `0x4745544D`) |
+| 0      | 4    | ASCII magic = `"MTGE"` (bytes `0x4D 0x54 0x47 0x45`; equals uint32 LE `0x4547544D`) |
 | 4      | 4    | uint32 version = 2 |
 | 8      | 4    | uint32 count N |
 | 12     | 4    | uint32 dim D = 256 |
@@ -1022,7 +1022,7 @@ def test_roundtrip(tmp_path):
     read_ids, read_embeds, header = read_embeddings(path)
     assert read_ids == ids
     np.testing.assert_allclose(read_embeds, embeds, atol=1e-6)
-    assert header["magic"] == 0x4745544D
+    assert header["magic"] == 0x4547544D
     assert header["version"] == 2
     assert header["count"] == 3
     assert header["dim"] == 256
@@ -1425,7 +1425,7 @@ from src.embed_binary import read_embeddings
 ids, embeds, h = read_embeddings('artifacts/card_embeds_v2.bin')
 print('header:', h)
 print('N ids:', len(ids), 'shape:', embeds.shape)
-assert h['magic'] == 0x4745544D
+assert h['magic'] == 0x4547544D
 assert h['version'] == 2
 assert h['dim'] == 256
 print('OK')
