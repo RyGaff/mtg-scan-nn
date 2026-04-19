@@ -18,6 +18,12 @@ dependencies = [
   "tensorflow>=2.15",
   "onnx>=1.16",
   "onnx2tf>=1.22",
+  # onnx2tf peer deps (not declared by onnx2tf itself)
+  "tf_keras>=2.15",
+  "onnx-graphsurgeon>=0.5",
+  "psutil>=5.9",
+  "sng4onnx>=1.0",
+  "ai-edge-litert>=1.0",
 ]
 
 [project.optional-dependencies]
