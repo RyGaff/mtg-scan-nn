@@ -8,6 +8,7 @@ Usage:
 import argparse
 import json
 import random
+import time
 from pathlib import Path
 import torch
 from torch.utils.data import DataLoader
@@ -73,9 +74,12 @@ def train(smoke: bool = False, resume: str | None = None):
         start_epoch = ck["epoch"] + 1
 
     ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+    epoch_log: list[dict] = []
+    run_start = time.perf_counter()
     for epoch in range(start_epoch, epochs):
         model.train()
         total_loss = 0.0
+        epoch_start = time.perf_counter()
         pbar = tqdm(train_loader, desc=f"epoch {epoch}")
         for imgs, labels in pbar:
             imgs = imgs.to(device, non_blocking=True)
@@ -89,7 +93,9 @@ def train(smoke: bool = False, resume: str | None = None):
             total_loss += loss.item()
             pbar.set_postfix(loss=f"{loss.item():.4f}")
         avg = total_loss / max(len(train_loader), 1)
-        print(f"epoch {epoch} avg loss: {avg:.4f}")
+        elapsed = time.perf_counter() - epoch_start
+        print(f"epoch {epoch} avg loss: {avg:.4f}  ({elapsed:.1f}s)")
+        epoch_log.append({"epoch": epoch, "avg_loss": avg, "seconds": elapsed})
 
         ckpt = ARTIFACTS_DIR / f"ckpt_epoch{epoch}.pt"
         torch.save({"model": model.state_dict(),
@@ -103,6 +109,20 @@ def train(smoke: bool = False, resume: str | None = None):
     torch.save({"model": model.state_dict(),
                 "train_ids": train_ids, "eval_ids": eval_ids}, final)
     print(f"saved {final}")
+
+    log_path = ARTIFACTS_DIR / "train_log.json"
+    log_path.write_text(json.dumps({
+        "smoke": smoke,
+        "device": device,
+        "epochs_run": len(epoch_log),
+        "total_seconds": time.perf_counter() - run_start,
+        "train_cards": len(train_ids),
+        "eval_cards": len(eval_ids),
+        "batch_size": batch,
+        "samples_per_card": 4,
+        "epochs": epoch_log,
+    }, indent=2))
+    print(f"wrote {log_path}")
 
 
 def main():

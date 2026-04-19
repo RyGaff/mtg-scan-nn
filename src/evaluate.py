@@ -4,6 +4,7 @@ Usage:
   python -m src.evaluate --ckpt artifacts/card_encoder.pt
 """
 import argparse
+import hashlib
 import json
 import numpy as np
 import torch
@@ -11,8 +12,16 @@ from pathlib import Path
 from PIL import Image
 from tqdm import tqdm
 from src.augment import build_train_transform, build_eval_transform
-from src.config import IMAGES_DIR
+from src.config import ARTIFACTS_DIR, IMAGES_DIR
 from src.model import CardEncoder
+
+
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 @torch.no_grad()
 def compute_embeddings(model, ids, images_dir, transform, device, augs_per_card=1):
@@ -58,6 +67,18 @@ def main():
     top1 = topk_accuracy(query, q_labels, gallery, g_labels, k=1)
     top3 = topk_accuracy(query, q_labels, gallery, g_labels, k=3)
     print(f"top-1: {top1*100:.2f}%  top-3: {top3*100:.2f}%")
+
+    results_path = ARTIFACTS_DIR / "eval_results.json"
+    ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+    results_path.write_text(json.dumps({
+        "ckpt_path": str(Path(args.ckpt).resolve()),
+        "ckpt_sha256": _sha256(Path(args.ckpt)),
+        "eval_count": len(eval_ids),
+        "augs_per_eval": args.augs_per_eval,
+        "top1": float(top1),
+        "top3": float(top3),
+    }, indent=2))
+    print(f"wrote {results_path}")
 
 if __name__ == "__main__":
     main()

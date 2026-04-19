@@ -200,6 +200,16 @@ def main():
         },
         "model_hash": f"0x{model_hash:08x}",
     }
+    # Fold in eval / benchmark / train logs if present — single source of truth.
+    for key, fname in [("eval", "eval_results.json"),
+                       ("benchmark", "benchmark_results.json"),
+                       ("train", "train_log.json")]:
+        p = ARTIFACTS_DIR / fname
+        if p.exists():
+            try:
+                manifest[key] = json.loads(p.read_text())
+            except json.JSONDecodeError as e:
+                print(f"warning: could not parse {p}: {e}")
     manifest_path.write_text(json.dumps(manifest, indent=2))
     print(f"wrote {manifest_path}")
 
