@@ -15,3 +15,5 @@ artifacts/
 .ruff_cache/
 *.egg-info/
 wandb/
+# onnx2tf pre-seed calibration file written at repo root during TFLite export
+calibration_image_sample_data_*.npy
