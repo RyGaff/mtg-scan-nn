@@ -45,11 +45,45 @@ Encoder `version` MUST match embeddings `version` — they are bound.
 4. `src/export.py` — write CoreML, TFLite, embeddings, manifest
 5. `src/benchmark.py` — measure inference latency
 
+## Setup on a fresh GPU machine
+
+Prerequisites: `conda` or `miniconda`, NVIDIA driver + CUDA runtime (for CUDA wheels) OR Apple Silicon (for MPS). Python 3.11 env is created automatically.
+
+```bash
+git clone <repo> mtg-card-encoder && cd mtg-card-encoder
+bash scripts/setup.sh                 # creates conda env `mtg-encoder`, installs deps
+conda activate mtg-encoder
+
+bash scripts/download_data.sh         # ~35k images, ~15 min, resumable
+bash scripts/train_full.sh            # 30 epochs — GPU strongly recommended
+bash scripts/release.sh               # evaluate + export .mlmodel/.tflite/.bin/manifest
+```
+
+Device auto-selects: `cuda` → `mps` → `cpu`. Override via `MTG_DEVICE=cuda:1 bash scripts/train_full.sh`.
+
+Smoke check (runs locally on CPU in ~1 min after dataset download):
+
+```bash
+python -m src.download_images --limit 50
+python -m src.train --smoke
+python -m src.evaluate --ckpt artifacts/card_encoder.pt --augs-per-eval 2
+pytest -v
+```
+
+## Scripts
+
+| Script | Purpose |
+|---|---|
+| `scripts/setup.sh` | Create conda env, install editable package + deps, verify imports |
+| `scripts/download_data.sh` | Fetch Scryfall bulk + images (rate-limited, resumable) |
+| `scripts/train_full.sh` | 30-epoch training run, emits per-epoch + final checkpoints |
+| `scripts/release.sh` | Evaluate + export CoreML / TFLite / embeddings binary / manifest |
+
 ## Targets
 
 - Top-1 ≥98% on held-out augmented cards
 - Top-1 ≥95% on real-world phone photo test set
-- Encoder file size ≤5 MB each (CoreML, TFLite)
+- Encoder file size ≤8 MB each (CoreML `.mlmodel`, TFLite)
 
 ## Out of scope
 

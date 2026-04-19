@@ -141,7 +141,8 @@ def main():
     p.add_argument("--ckpt", required=True)
     args = p.parse_args()
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    from src.device import pick_device
+    device = pick_device()
     ck = torch.load(args.ckpt, map_location=device, weights_only=False)
     model = CardEncoder().to(device)
     model.load_state_dict(ck["model"])

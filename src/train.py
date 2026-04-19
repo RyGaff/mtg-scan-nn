@@ -17,6 +17,7 @@ from tqdm import tqdm
 from src.config import (BATCH_SIZE, LR, WEIGHT_DECAY, EPOCHS, TRIPLET_MARGIN,
                         IMAGES_DIR, UNIQUE_ARTWORK_JSON, ARTIFACTS_DIR)
 from src.dataset import CardDataset
+from src.device import pick_device
 from src.model import CardEncoder
 from src.losses import build_triplet_loss
 
@@ -38,7 +39,7 @@ def split_ids(ids: list[str], eval_frac: float = 0.1, seed: int = 42):
 
 
 def train(smoke: bool = False, resume: str | None = None):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = pick_device()
     print(f"device: {device}")
 
     limit = 50 if smoke else None
@@ -54,7 +55,7 @@ def train(smoke: bool = False, resume: str | None = None):
     # On macOS, multiprocessing fork can cause issues; use num_workers=0 for
     # smoke runs. pin_memory is only useful with CUDA.
     num_workers = 0 if smoke else 4
-    pin_memory = torch.cuda.is_available()
+    pin_memory = device == "cuda"
     train_loader = DataLoader(train_ds, batch_size=batch, shuffle=True,
                               num_workers=num_workers, pin_memory=pin_memory,
                               drop_last=True)
