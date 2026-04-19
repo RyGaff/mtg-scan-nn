@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+data/
+artifacts/
+*.mlmodel
+*.tflite
+*.bin
+*.pt
+*.ckpt
+.DS_Store
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+wandb/

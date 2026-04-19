@@ -1,0 +1,31 @@
+[project]
+name = "mtg-card-encoder"
+version = "0.1.0"
+description = "Train and export a 256-dim MTG card image embedding model"
+requires-python = ">=3.10"
+dependencies = [
+  "torch>=2.2",
+  "torchvision>=0.17",
+  "timm>=1.0",
+  "pytorch-metric-learning>=2.5",
+  "albumentations>=1.4",
+  "opencv-python-headless>=4.9",
+  "pillow>=10.0",
+  "numpy>=1.26",
+  "requests>=2.31",
+  "tqdm>=4.66",
+  "coremltools>=7.2",
+  "tensorflow>=2.15",
+  "onnx>=1.16",
+  "onnx2tf>=1.22",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.4"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
