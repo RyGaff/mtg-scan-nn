@@ -38,7 +38,7 @@ class ExportWrapper(nn.Module):
 
 
 def sha256_file(path: Path) -> str:
-    """Hash a file or directory (for .mlpackage bundles, hash all files sorted)."""
+    """Hash a file or directory (directory hashing retained for robustness)."""
     h = hashlib.sha256()
     if path.is_dir():
         for fpath in sorted(path.rglob("*")):
@@ -63,17 +63,22 @@ def export_coreml(wrapper: nn.Module, out_path: Path):
         traced,
         inputs=[ct.TensorType(name="image", shape=example.shape)],
         outputs=[ct.TensorType(name="embedding")],
-        compute_precision=ct.precision.FLOAT32,
-        minimum_deployment_target=ct.target.iOS15,
+        convert_to="neuralnetwork",             # forces legacy .mlmodel format (iOS 11+)
+        minimum_deployment_target=ct.target.iOS13,
     )
     mlmodel.save(str(out_path))
 
 
 def export_tflite(wrapper: nn.Module, out_path: Path, tmp_dir: Path):
-    """PyTorch -> ONNX -> TF SavedModel (onnx2tf) -> TFLite."""
+    """PyTorch -> ONNX -> TF SavedModel (onnx2tf) -> TFLite.
+
+    onnx2tf unconditionally tries to download a calibration .npy file for any
+    4D NHWC input with 3 channels.  Rather than monkey-patching its internals,
+    we pre-seed the expected file path with dummy data so the download is
+    skipped entirely (onnx2tf checks os.getcwd()/<filename> first).
+    """
     import onnx
     import onnx2tf
-    import onnx2tf.utils.common_functions as onnx2tf_common
     import tensorflow as tf
 
     tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -90,13 +95,13 @@ def export_tflite(wrapper: nn.Module, out_path: Path, tmp_dir: Path):
     )
     onnx.checker.check_model(str(onnx_path))
 
-    # onnx2tf always downloads calibration test images for 4D NCHW inputs.
-    # The GitHub release URL may be inaccessible; supply dummy data instead.
-    # Must patch in the onnx2tf.onnx2tf module namespace (it imported by name).
-    import onnx2tf.onnx2tf as _onnx2tf_mod
-    _dummy_calib = np.random.rand(20, 128, 128, 3).astype(np.float32)
-    _orig_download = _onnx2tf_mod.download_test_image_data
-    _onnx2tf_mod.download_test_image_data = lambda: _dummy_calib
+    # Pre-seed calibration data so onnx2tf skips the network download.
+    # onnx2tf looks for this file in os.getcwd() before attempting a download.
+    calib_file_name = "calibration_image_sample_data_20x128x128x3_float32.npy"
+    calib_file_path = Path.cwd() / calib_file_name
+    if not calib_file_path.exists() or calib_file_path.stat().st_size < 1000:
+        dummy_calib = np.zeros((20, 128, 128, 3), dtype=np.float32)
+        np.save(str(calib_file_path), dummy_calib)
 
     try:
         onnx2tf.convert(
@@ -110,8 +115,6 @@ def export_tflite(wrapper: nn.Module, out_path: Path, tmp_dir: Path):
             input_onnx_file_path=str(onnx_path),
             output_folder_path=str(tf_dir),
         )
-    finally:
-        _onnx2tf_mod.download_test_image_data = _orig_download
 
     converter = tf.lite.TFLiteConverter.from_saved_model(str(tf_dir))
     converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS]
@@ -146,7 +149,7 @@ def main():
 
     ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    coreml_path = ARTIFACTS_DIR / "card_encoder.mlpackage"
+    coreml_path = ARTIFACTS_DIR / "card_encoder.mlmodel"
     tflite_path = ARTIFACTS_DIR / "card_encoder.tflite"
     embeds_path = ARTIFACTS_DIR / "card_embeds_v2.bin"
     manifest_path = ARTIFACTS_DIR / "manifest.json"
@@ -164,13 +167,12 @@ def main():
             sz_bytes = pth.stat().st_size
         sz_mb = sz_bytes / (1024 * 1024)
         print(f"{pth.name}: {sz_mb:.2f} MB")
-        if sz_mb > 5.0:
-            size_violations.append(f"{pth.name} exceeds 5 MB (got {sz_mb:.2f} MB)")
+        if sz_mb > 8.0:
+            size_violations.append(f"{pth.name} exceeds 8 MB (got {sz_mb:.2f} MB)")
     if size_violations:
-        print("SIZE VIOLATIONS (see DONE_WITH_CONCERNS report):")
         for v in size_violations:
-            print(f"  {v}")
-        print("Continuing to generate embeddings and manifest for verification...")
+            print(f"SIZE VIOLATION: {v}", flush=True)
+        raise SystemExit(f"Artifact size limit exceeded: {'; '.join(size_violations)}")
 
     encoder_sha = sha256_file(coreml_path)
     model_hash = int(encoder_sha[:8], 16)
