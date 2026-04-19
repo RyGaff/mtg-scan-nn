@@ -10,10 +10,7 @@ class CardEncoder(nn.Module):
         self.backbone = timm.create_model(
             backbone, pretrained=True, num_classes=0, global_pool="avg"
         )
-        # Infer feat_dim from backbone output
-        with torch.no_grad():
-            dummy_input = torch.randn(1, 3, 224, 224)
-            feat_dim = self.backbone(dummy_input).shape[1]
+        feat_dim = self.backbone.num_features  # 576 for mobilenetv3_small_100
         self.head = nn.Linear(feat_dim, embed_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
