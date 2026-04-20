@@ -52,7 +52,8 @@ log "phase 3/5: train"
 if [[ -n "${SKIP_TRAIN:-}" && -f "$CKPT" ]]; then
   echo "SKIP_TRAIN set and $CKPT exists, skipping"
 else
-  TRAIN_ARGS=("$SMOKE_FLAG")
+  TRAIN_ARGS=()
+  [[ -n "$SMOKE_FLAG" ]] && TRAIN_ARGS+=("$SMOKE_FLAG")
   if [[ -n "${MTG_RESUME:-}" ]]; then
     TRAIN_ARGS+=(--resume "$MTG_RESUME")
   fi
