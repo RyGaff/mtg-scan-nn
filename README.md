@@ -51,12 +51,26 @@ Prerequisites: `conda` or `miniconda`, NVIDIA driver + CUDA runtime (for CUDA wh
 
 ```bash
 git clone <repo> mtg-card-encoder && cd mtg-card-encoder
+
+# one-command: setup → download → train → eval → export
+bash scripts/run_all.sh
+
+# or step-by-step (same effect):
 bash scripts/setup.sh                 # creates conda env `mtg-encoder`, installs deps
 conda activate mtg-encoder
-
 bash scripts/download_data.sh         # ~35k images, ~15 min, resumable
 bash scripts/train_full.sh            # 30 epochs — GPU strongly recommended
 bash scripts/release.sh               # evaluate + export .mlmodel/.tflite/.bin/manifest
+```
+
+Useful flags on `run_all.sh`:
+
+```bash
+bash scripts/run_all.sh --smoke       # 1 epoch on 50 cards (~3 min sanity check)
+SKIP_DOWNLOAD=1 bash scripts/run_all.sh   # images already on disk
+SKIP_TRAIN=1    bash scripts/run_all.sh   # re-export from existing ckpt
+MTG_RESUME=artifacts/ckpt_epoch12.pt bash scripts/run_all.sh  # resume from crash
+MTG_DEVICE=cuda:1 bash scripts/run_all.sh # pin to specific GPU
 ```
 
 Device auto-selects: `cuda` → `mps` → `cpu`. Override via `MTG_DEVICE=cuda:1 bash scripts/train_full.sh`.
